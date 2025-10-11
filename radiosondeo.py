@@ -14,7 +14,7 @@ RENAME_MAP = {
     "DD": "DD", "FF": "FF",
 }
 
-df = pd.read_csv("Radiosondas-2018/04102018EDT.tsv", sep="\t", skiprows=45)
+df = pd.read_csv("Radiosondas-2018/02022018EDT.tsv", sep="\t", skiprows=45, nrows=1810)
 df.columns = df.columns.str.strip()
 cols_lower = {c.lower(): c for c in df.columns}
 selected = {}
@@ -129,10 +129,8 @@ def print_var(name, var):
             print(f"{name:>15}: [{sample}, ...] {units_str} (n={len(vals)})")
     except Exception as e:
         print(f"{name:>15}: Error al mostrar ({e})")
-print("\n========= VARIABLES CALCULADAS =========")
 
 print("\n========= VARIABLES CALCULADAS =========")
-
 print("Presión de vapor (e):", e)
 print("Presión de vapor saturado (es):", es)
 print("Razón de mezcla de saturación (ws):", ws)
@@ -144,7 +142,6 @@ print("Temperatura potencial equivalente (θe):", theta_e)
 print("Densidad del aire (ρ):", rho)
 
 print("\n========= NIVELES Y PARCELAS =========")
-
 print("Presión superficie (Psfc):", p_sfc)
 print("Temperatura superficie (Tsfc):", T_sfc)
 print("Temperatura de rocío superficie (Tdsfc):", Td_sfc)
