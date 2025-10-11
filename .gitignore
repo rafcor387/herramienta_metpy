@@ -1,0 +1,12 @@
+#radiosondeos
+
+Radiosondas-2018/
+
+#entornos virtuales
+venv/
+.venv/
+
+
+#archivos de python
+__pycache__/
+**/__pycache__/

@@ -1,0 +1,21 @@
+| Variable | Unidad                   | Descripción                                                                                                                      |
+| -------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `time`   | segundos (`sec`)         | Tiempo desde el inicio del lanzamiento de la radiosonda. Ayuda a reconstruir la trayectoria temporal del perfil.                 |
+| `Pscl`   | logaritmo natural (`ln`) | Escala logarítmica de la presión. Usualmente usada internamente por el sistema, no se necesita para análisis directo.            |
+| `T`      | Kelvin (`K`)             | **Temperatura del aire** a cada nivel. Debe convertirse a °C si usas MetPy.                                                      |
+| `RH`     | Porcentaje (`%`)         | **Humedad relativa**, que indica cuán saturado está el aire con vapor de agua.                                                   |
+| `v`      | m/s                      | Componente **norte-sur** del viento (meridional). El signo negativo indica que los valores deben invertirse para ser coherentes. |
+| `u`      | m/s                      | Componente **este-oeste** del viento (zonal). También invertido por el signo negativo.                                           |
+| `Height` | metros (`m`)             | **Altura geopotencial** sobre el nivel del mar. Para perfiles en función de altitud. Se le aplica un offset de 30000.            |
+| `P`      | hectopascales (`hPa`)    | **Presión atmosférica**, principal eje vertical en meteorología.                                                                 |
+| `TD`     | Kelvin (`K`)             | **Temperatura de rocío**, punto al que el aire debe enfriarse para saturarse. Necesaria para CAPE, CIN.                          |
+| `MR`     | gramos por kg (`g/kg`)   | **Mezcla de humedad (Mixing Ratio)**: cantidad de vapor de agua por kg de aire seco. Alternativa a RH.                           |
+| `DD`     | grados (`°`)             | **Dirección del viento** (meteorológica: desde dónde sopla). 0° = norte, 90° = este, etc.                                        |
+| `FF`     | m/s                      | **Velocidad del viento** total, sin componentes. Se puede comparar con `sqrt(u² + v²)`.                                          |
+| `AZ`     | grados (`°`)             | Azimut del radar o instrumento de medición. Puede usarse para mapeo o reconstrucción espacial.                                   |
+| `Range`  | metros                   | Distancia radial desde el radar o antena. Útil en escaneos horizontales, menos en radiosondeos.                                  |
+| `Lon`    | grados                   | **Longitud geográfica** del punto de medición. Generalmente constante si es un radiosondeo fijo.                                 |
+| `Lat`    | grados                   | **Latitud geográfica**. Junto con `Lon`, ubica espacialmente el perfil.                                                          |
+| `SpuKey` | bitfield                 | Campo de control del dispositivo, como estado del sensor o flags de calidad. No es necesario para análisis físico.               |
+| `UsrKey` | bitfield                 | Otro campo de control definido por el usuario o protocolo. Se puede ignorar si no se usa explícitamente.                         |
+| `RadarH` | metros                   | Altura de la antena o instrumento. Se le aplica offset (30000), igual que a `Height`. Puede ayudarte a ajustar la altura cero.   |
