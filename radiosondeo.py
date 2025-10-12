@@ -5,32 +5,16 @@ import metpy.constants as mpconst
 import pandas as pd
 import numpy as np
 
-""" df = pd.read_csv("Radiosondas-2018/04102018EDT.tsv", sep="\t", skiprows=45)
-df.columns = df.columns.str.strip() """
-
-RENAME_MAP = {
-    "P": "P", "Height": "Height", "T": "T", "TD": "TD",
-    "RH": "RH", "u": "u", "v": "v", "MR": "MR",
-    "DD": "DD", "FF": "FF",
-}
-
-df = pd.read_csv("Radiosondas-2018/02022018EDT.tsv", sep="\t", skiprows=45, nrows=1810)
-df.columns = df.columns.str.strip()
-cols_lower = {c.lower(): c for c in df.columns}
-selected = {}
-for src, dst in RENAME_MAP.items():
-    if src in df.columns:
-        selected[src] = dst
-    elif src.lower() in cols_lower:
-        selected[cols_lower[src.lower()]] = dst
-df = df[list(selected.keys())].rename(columns=selected)
-for c in df.columns:
-    df[c] = df[c].astype(float)
-
 #niveles
 _P = list(np.arange(620.0, 80.0, -20.0, dtype=float))
 P_LEVELS = np.array(_P, dtype=float)*units.hPa   
 P_LEVELS_ASC = np.sort(P_LEVELS)
+
+""" si la pressure >=100  debe tomar esa linea y llegar hasta ahi en todos los radiosondeos"""
+df = pd.read_csv("Radiosondas-2018/02022018EDT.tsv", sep="\t", skiprows=45)
+df.columns = df.columns.str.strip()
+df["P"] = df["P"].astype(float)
+df = df[df['P'] >= 100].copy()
 
 #principales 
 pressure = df['P'].to_numpy() * units.hPa
@@ -69,21 +53,25 @@ rho = mpcalc.density(pressure, temperature, mr, mpconst.epsilon)                
 p_sfc, T_sfc, Td_sfc = pressure[0], temperature[0], dewpoint[0]
 prof_sb = mpcalc.parcel_profile(pressure, T_sfc, Td_sfc)
 lcl_p, lcl_T = mpcalc.lcl(p_sfc, T_sfc, Td_sfc)
-lfc_p = mpcalc.lfc(pressure, temperature, dewpoint, prof_sb, Td_sfc)
-el_p  = mpcalc.el(pressure, temperature, dewpoint, prof_sb)
+lfc_p, lfc_T = mpcalc.lfc(pressure, temperature, dewpoint, prof_sb, Td_sfc)
+el_p, el_T  = mpcalc.el(pressure, temperature, dewpoint, prof_sb)
 
 cape_sb, cin_sb = mpcalc.cape_cin(pressure, temperature, dewpoint, prof_sb)
 
-""" # Parcela mixta (lowest 100 hPa por defecto; ajusta si quieres)
-p_ml, T_ml, Td_ml = mpcalc.mixed_parcel(pressure, temperature, dewpoint, depth=50 * units.hPa)
+# Parcela mixta mixed_parcel (lowest 100 hPa por defecto; ajusta si quieres)
+p_mp, T_mp, Td_mp = mpcalc.mixed_parcel(pressure, temperature, dewpoint, depth=50 * units.hPa)
+# Capa_mixta mixed_layer 
 #prof_ml = mpcalc.parcel_profile(p_ml, T_ml, Td_ml)
-cape_ml, cin_ml = mpcalc.cape_cin(p_ml, T_ml, Td_ml, prof_sb) """
+cape_ml, cin_ml = mpcalc.mixed_layer_cape_cin(pressure, temperature, dewpoint, depth=50 * units.hPa)
+#mixed_layer
 
 """ # ========= ÍNDICES DE ESTABILIDAD CLÁSICOS =========
 k_index = mpcalc.k_index(pressure, temperature, dewpoint)
 showalter = mpcalc.showalter_index(pressure, temperature, dewpoint)
 lifted = mpcalc.lifted_index(pressure, temperature, prof_sb)  # LI respecto a 500 hPa
-tt_index = mpcalc.total_totals_index(pressure, temperature, dewpoint)     """
+tt_index = mpcalc.total_totals_index(pressure, temperature, dewpoint)    
+ """
+#cape_cin, surface_based_cape_cin, most_unstable_cape_cin, mixed_layer_cape_cin
 
 #interpolacion
 # Interpolamos temperatura y punto de rocío a los nuevos niveles
@@ -117,18 +105,6 @@ print("\nHumedad relativa calculada:", rh)
 print("presión de vapor", e)
 print("mezcla de razón ws:", ws)
 print("mezcla de razón w:", w)
-def print_var(name, var):
-    """Imprime el nombre, unidades y primeros valores de una variable con unidades."""
-    try:
-        vals = np.asarray(var)
-        units_str = str(var.units)
-        if vals.ndim == 0:
-            print(f"{name:>15}: {vals:.3f} {units_str}")
-        else:
-            sample = ", ".join([f"{v:.3f}" for v in vals[:5]])
-            print(f"{name:>15}: [{sample}, ...] {units_str} (n={len(vals)})")
-    except Exception as e:
-        print(f"{name:>15}: Error al mostrar ({e})")
 
 print("\n========= VARIABLES CALCULADAS =========")
 print("Presión de vapor (e):", e)
@@ -145,15 +121,27 @@ print("\n========= NIVELES Y PARCELAS =========")
 print("Presión superficie (Psfc):", p_sfc)
 print("Temperatura superficie (Tsfc):", T_sfc)
 print("Temperatura de rocío superficie (Tdsfc):", Td_sfc)
+print("Perfil de la parcela de SB (prof_sb):", prof_sb)
 print("Nivel de condensación por elevación (LCL) presión:", lcl_p)
 print("Nivel de condensación por elevación (LCL) temperatura:", lcl_T)
 print("Nivel de libre convección (LFC) presión:", lfc_p)
 print("Nivel de equilibrio (EL) presión:", el_p)
 print("CAPE superficie (SB):", cape_sb)
 print("CIN superficie (SB):", cin_sb)
+print("mixed_parcel presion:", p_mp," temperatura:",T_mp, "dewpoint:",Td_mp )
+print("cape y cin de mixed_layer:", cape_ml, cin_ml)
 
-print("\n========= PERFIL PARCELA SB =========")
 
-print("Perfil de la parcela (prof_sb):", prof_sb)
-
+def print_var(name, var):
+    """Imprime el nombre, unidades y primeros valores de una variable con unidades."""
+    try:
+        vals = np.asarray(var)
+        units_str = str(var.units)
+        if vals.ndim == 0:
+            print(f"{name:>15}: {vals:.3f} {units_str}")
+        else:
+            sample = ", ".join([f"{v:.3f}" for v in vals[:5]])
+            print(f"{name:>15}: [{sample}, ...] {units_str} (n={len(vals)})")
+    except Exception as e:
+        print(f"{name:>15}: Error al mostrar ({e})")
 

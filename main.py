@@ -14,7 +14,7 @@ from metpy.calc import (
 from metpy.units import units
 
 # Leer y limpiar  20181127EDT 20181128EDT.tsv          03052018EDT             29032018EDT       29032018EDT    20181128EDT   09052018EDT
-df = pd.read_csv("./Radiosondas-2018/29032018EDT.tsv", sep="\t", skiprows=45)
+df = pd.read_csv("./Radiosondas-2018/31012018EDT.tsv", sep="\t", skiprows=45)
 df.columns = df.columns.str.strip()
 
 # Extraer columnas
@@ -76,7 +76,7 @@ plt.title("Diagrama Skew-T")
 plt.legend()
 plt.show()
 
-
+print("valor lfc:", )
 
 # === GUARDAR ETIQUETAS ===""" 
 """ # Detectar inversión térmica (opcional)
