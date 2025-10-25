@@ -10,8 +10,7 @@ _P = list(np.arange(620.0, 80.0, -20.0, dtype=float))
 P_LEVELS = np.array(_P, dtype=float)*units.hPa   
 P_LEVELS_ASC = np.sort(P_LEVELS)
 
-""" si la pressure >=100  debe tomar esa linea y llegar hasta ahi en todos los radiosondeos"""
-df = pd.read_csv("Radiosondas-2018/02022018EDT.tsv", sep="\t", skiprows=45)
+df = pd.read_csv("Radiosondas-2018/20181128EDT.tsv", sep="\t", skiprows=45)
 df.columns = df.columns.str.strip()
 df["P"] = df["P"].astype(float)
 df = df[df['P'] >= 100].copy()
@@ -31,7 +30,7 @@ v = df['v'].to_numpy() *units.meter / units.second
 u = df['u'].to_numpy() *units.meter / units.second
 rh = df['RH'].to_numpy() * units.percent
 mr = df['MR'].to_numpy() * units('g/kg')
-
+a= mpcalc.precipitable_water
 #CALCULOS 
 #viento 
 uc, vc = mpcalc.wind_components(wind_speed, wind_dir) 
@@ -52,35 +51,57 @@ rho = mpcalc.density(pressure, temperature, mr, mpconst.epsilon)                
 # Parcela de superficie (SB)
 p_sfc, T_sfc, Td_sfc = pressure[0], temperature[0], dewpoint[0]
 prof_sb = mpcalc.parcel_profile(pressure, T_sfc, Td_sfc)
-lcl_p, lcl_T = mpcalc.lcl(p_sfc, T_sfc, Td_sfc)
-lfc_p, lfc_T = mpcalc.lfc(pressure, temperature, dewpoint, prof_sb, Td_sfc)
-el_p, el_T  = mpcalc.el(pressure, temperature, dewpoint, prof_sb)
+cape_sb, cin_sb = mpcalc.surface_based_cape_cin(pressure, temperature, dewpoint)
 
-cape_sb, cin_sb = mpcalc.cape_cin(pressure, temperature, dewpoint, prof_sb)
-
-# Parcela mixta mixed_parcel (lowest 100 hPa por defecto; ajusta si quieres)
+# Parcela mixta (mp) (lowest 100 hPa por defecto; ajusta si quieres)
 p_mp, T_mp, Td_mp = mpcalc.mixed_parcel(pressure, temperature, dewpoint, depth=50 * units.hPa)
-# Capa_mixta mixed_layer 
-#prof_ml = mpcalc.parcel_profile(p_ml, T_ml, Td_ml)
+prof_mp = mpcalc.parcel_profile(pressure,T_mp,Td_mp)
 cape_ml, cin_ml = mpcalc.mixed_layer_cape_cin(pressure, temperature, dewpoint, depth=50 * units.hPa)
-#mixed_layer
 
-""" # ========= ÍNDICES DE ESTABILIDAD CLÁSICOS =========
-k_index = mpcalc.k_index(pressure, temperature, dewpoint)
-showalter = mpcalc.showalter_index(pressure, temperature, dewpoint)
-lifted = mpcalc.lifted_index(pressure, temperature, prof_sb)  # LI respecto a 500 hPa
-tt_index = mpcalc.total_totals_index(pressure, temperature, dewpoint)    
- """
-#cape_cin, surface_based_cape_cin, most_unstable_cape_cin, mixed_layer_cape_cin
+#Parcel mas inestable (mu)
+cape_mu, cin_mu = mpcalc.most_unstable_cape_cin(pressure,temperature, dewpoint)
+
+lcl_p, lcl_T = mpcalc.lcl(p_sfc, T_sfc, Td_sfc)
+lfc_p, lfc_T = mpcalc.lfc(pressure, temperature, dewpoint)
+el_p, el_T  = mpcalc.el(pressure, temperature, dewpoint)
+ccl_1, ccl_2, ccl_3 = mpcalc.ccl(pressure, temperature, dewpoint)
+
+# ========= ÍNDICES DE ESTABILIDAD CLÁSICOS =========
+lifted = mpcalc.lifted_index(pressure, temperature, prof_sb)  # LI respecto a 500 hPa 
+
+# ========= LAPSE RATE =========
+gama_most = mpcalc.moist_lapse(pressure, temperature[0]).to('degC')
+dT_dz = (-mpcalc.first_derivative(temperature, x=height))
+ELR   = (-dT_dz).to('degC/km')  
+
+# 1) Construir altura AGL (0 en superficie del sondeo)
+agl = (height - height[0]).to('meter')
+# 2) Extraer exactamente la capa 0–3 km AGL (interpola bordes si no caen en un nivel exacto)
+p_03, T_03, agl_03 = mpcalc.get_layer(pressure, temperature, agl, height=agl,
+                                      bottom=0*units.meter, depth=3000*units.meter)
+# 3) Lapse rate medio en la capa (ambiental):
+Gamma_03 = ((T_03[0] - T_03[-1]) / (agl_03[-1] - agl_03[0])).to('degC/km')
+#print(Gamma_03)  # → °C/km
+
+p_36, T_36, agl_36 = mpcalc.get_layer(pressure, temperature, agl, height=agl,
+                                      bottom=3000*units.meter, depth=3000*units.meter)
+Gamma_36 = ((T_36[0] - T_36[-1]) / (agl_36[-1] - agl_36[0])).to('degC/km')
+
+
+sigma = mpcalc.static_stability(pressure,temperature)
+z = mpcalc.height_to_geopotential(height)
+
+#most_estatic_energy = mpcalc.moist_static_energy(height,temperature, humedadEspecifica)   dry_static_energy
+
 
 #interpolacion
 # Interpolamos temperatura y punto de rocío a los nuevos niveles
-temp_interp = log_interpolate_1d(P_LEVELS_ASC, pressure, temperature)
-dew_interp = log_interpolate_1d(P_LEVELS_ASC, pressure, dewpoint)
+""" temp_interp = log_interpolate_1d(P_LEVELS_ASC, pressure, temperature)
+dew_interp = log_interpolate_1d(P_LEVELS_ASC, pressure, dewpoint) """
 
 print("Datos principales")
-print("presion:", pressure)
-print("altura:", height)
+print("presion:", pressure[:10])
+print("altura:", height[:10])
 print("temperatura en kelvin:", temperature)
 print("temperatura de rocío en kelvin:", dewpoint)
 print("velocidad del viento:", wind_speed)
@@ -97,9 +118,9 @@ print("\nCálculos")
 print("componentes del viento (u)", uc) 
 print("componentes del viento (v)", vc) 
 
-print("\nInterpolación:", P_LEVELS_ASC) 
+""" print("\nInterpolación:", P_LEVELS_ASC) 
 print("temperature:", temp_interp) 
-print("dewpoint:", dew_interp) 
+print("dewpoint:", dew_interp)  """
 
 print("\nHumedad relativa calculada:", rh) 
 print("presión de vapor", e)
@@ -118,19 +139,31 @@ print("Temperatura potencial equivalente (θe):", theta_e)
 print("Densidad del aire (ρ):", rho)
 
 print("\n========= NIVELES Y PARCELAS =========")
-print("Presión superficie (Psfc):", p_sfc)
-print("Temperatura superficie (Tsfc):", T_sfc)
-print("Temperatura de rocío superficie (Tdsfc):", Td_sfc)
-print("Perfil de la parcela de SB (prof_sb):", prof_sb)
-print("Nivel de condensación por elevación (LCL) presión:", lcl_p)
-print("Nivel de condensación por elevación (LCL) temperatura:", lcl_T)
-print("Nivel de libre convección (LFC) presión:", lfc_p)
-print("Nivel de equilibrio (EL) presión:", el_p)
-print("CAPE superficie (SB):", cape_sb)
-print("CIN superficie (SB):", cin_sb)
-print("mixed_parcel presion:", p_mp," temperatura:",T_mp, "dewpoint:",Td_mp )
-print("cape y cin de mixed_layer:", cape_ml, cin_ml)
+print("Nivel de condensación por elevación (LCL) presión:", lcl_p, lcl_T)
+print("Nivel de libre convección (LFC) presión:", lfc_p, lfc_T)
+print("Nivel de equilibrio (EL) presión:", el_p, el_T)
+print("Nivel de condensacion convectiva (CCL):", ccl_1, ccl_2, ccl_3)
 
+print("Presión_sb, temperatura_sb, dewpoint_sb:", p_sfc, T_sfc, Td_sfc)
+print("Perfil de la parcela de SB (prof_sb):", prof_sb)
+print("parcel por mp:", prof_mp)
+
+print("Presion_mp, temperatura_mp, dewpoint_mp:", p_mp, T_mp,Td_mp )
+print("CAPE y CIN superficie (SB):", cape_sb, cin_sb)
+print("CAPE y CIN mixed_layer:", cape_ml, cin_ml)
+print("CAPE y CIN most_unstable:", cape_mu, cin_mu)
+
+print("\n========= INDICES DE ESTABILIDAD CLASICOS =========")
+print("lifted index value:", lifted)
+
+print("\n========= LAPSE RATE (GAMMA) =========")
+print("lapse rate moist:", gama_most[:5])
+print("lapse ambiental:" , ELR[:5])
+print("lapse rate de 0-3 km:", Gamma_03)
+print("lapse rate de 3-6 km:", Gamma_36)
+
+print("\n========= ESTABILIDAD ESTATICA (SIGMA) =========")
+print("estabilidad estatica:", sigma[:10])
 
 def print_var(name, var):
     """Imprime el nombre, unidades y primeros valores de una variable con unidades."""
