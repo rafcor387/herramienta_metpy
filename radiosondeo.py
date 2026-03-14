@@ -10,7 +10,7 @@ _P = list(np.arange(620.0, 80.0, -20.0, dtype=float))
 P_LEVELS = np.array(_P, dtype=float)*units.hPa   
 P_LEVELS_ASC = np.sort(P_LEVELS)
 
-df = pd.read_csv("Radiosondas-2018/20181128EDT.tsv", sep="\t", skiprows=45)
+df = pd.read_csv("Radiosondas/01022018EDT.tsv", sep="\t", skiprows=45)
 df.columns = df.columns.str.strip()
 df["P"] = df["P"].astype(float)
 df = df[df['P'] >= 100].copy()

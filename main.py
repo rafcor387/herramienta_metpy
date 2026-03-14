@@ -14,7 +14,7 @@ from metpy.calc import (
 from metpy.units import units
 
 # Leer y limpiar  20181127EDT inestable     20181128EDT.tsv          03052018EDT             29032018EDT       29032018EDT    20181128EDT   09052018EDT
-df = pd.read_csv("./Radiosondas-2018/20181128EDT.tsv", sep="\t", skiprows=45)
+df = pd.read_csv("./Radiosondas/01022018EDT.tsv", sep="\t", skiprows=45)
 df.columns = df.columns.str.strip()
 
 # Extraer columnas
